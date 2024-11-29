@@ -1,0 +1,643 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+      <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>ETEX AWS Chatbot</title>
+
+            <!-- Link to CSS file -->
+            <link rel="stylesheet" href="{% static 'css/display_styles.css' %}" />
+            <link rel="stylesheet" href="{% static 'css/markdown_styles.css' %}" />
+      </head>
+      <body>
+            <header class="header">
+                  <div class="navbar">
+                        <!-- Home button -->
+                        <a href="{% url 'homepage' %}" class="home-btn">
+                              <img src="{% static 'Assets/home.png' %}" alt="Home Icon" />
+                        </a>
+                  </div>
+                  <!-- </div> -->
+                  <div class="logo-section">
+                        <img class="v-logo" src="{% static 'Assets/electrolux-logo.svg' %}" alt="vedanta Logo" />
+                  </div>
+                  <!-- <div class="user-logo-bg"> -->
+                  <!-- Navigation bar -->
+                  <div class="navbar">
+                        <!-- User profile section -->
+                        <div class="profile-menu">
+                              <img class="user-profile-icon" src="{% static 'Assets/user.svg' %}" alt="User Profile" />
+
+                              <!-- Popup menu -->
+                              <div class="profile-popup">
+                                    <a href="{% url 'homepage' %}" class="popup-link">Settings</a>
+                                    <a href="{% url 'logout' %}" class="popup-link">Logout</a>
+                              </div>
+                        </div>
+                  </div>
+            </header>
+            <div class="main-content">
+                  <div class="chat-container">
+                        <div class="hide-scrollbar" id="chat-container">
+                              <!-- chat container -->
+                        </div>
+                        <div class="input-container">
+                              <div class="llm-dropdown-container">
+                                    <label for="modelSelect"></label>
+                                    <select id="modelSelect" name="model">
+                                          <option value="llama">LLAMA</option>
+                                          <option value="dbrx">DBRX</option>
+                                          <option value="mistral">MISTRAL</option>
+                                    </select>
+                              </div>
+                              <div class="input-bar">
+                                    <div id="userInput" class="input-box" contenteditable="true" placeholder="Type your message..." onkeypress="handleKeyPress(event)" oninput="checkInput()" onpaste="handlePaste(event)"></div>
+                                    <button id="sendButton" class="send-button">
+                                          <img class="send-icon" id="sendIcon" src="/static/Assets/icons8-arrow-100.png" />
+                                    </button>
+                              </div>
+                        </div>
+                  </div>
+                  <div class="pdf-container">
+                        <div class="expand-pdf-icon-container">
+                              <img class="expand-icon" id="expand-icon-container" src="/static/Assets/expand-right.svg" alt="Expand Icon" style="transform: rotate(0deg)" />
+                        </div>
+                        <div class="s2-pdf">
+                              <div class="iframe-container">
+                                    <!-- Show the first PDF in the iframe by default -->
+                                    <iframe class="iframe-pdf" id="pdfIframe" src="{{ pdf_uploads.0.file.url }}"></iframe>
+                              </div>
+                        </div>
+                        <div class="pdf-thumbnails-container">
+                              {% for pdf in pdf_uploads %}
+                              <img class="pdf-thumbnails" src="/static/Assets/pdf-black.png" alt="PDF Icon" onclick="changePdf(this, '{{ pdf.file.url }}')" />
+                              {% endfor %}
+
+                              <form method="POST" enctype="multipart/form-data" class="upload-form" id="pdf-upload-form">
+                                    {% csrf_token %} {{ form.non_field_errors }} {{ form.pdf_file.errors }} {{ form.pdf_file }}
+                                    <button type="submit" class="submit-button" style="display: none">Upload PDF</button>
+                                    <img class="upload-pdf-thumbnail" id="upload-pdf-thumbnail" src="/static/Assets/upload-pdf.png" alt="Add PDF Icon" />
+                              </form>
+                        </div>
+                  </div>
+
+                  <script>
+                        function changePdf(element, pdfUrl) {
+                              // Change the iframe's source to the selected PDF's URL
+                              document.getElementById("pdfIframe").src = pdfUrl;
+
+                              // Reset styles for all thumbnails
+                              const thumbnails = document.querySelectorAll(".pdf-thumbnails");
+                              thumbnails.forEach((thumbnail) => {
+                                    thumbnail.style.backgroundColor = ""; // Reset background
+                                    thumbnail.style.filter = ""; // Reset filter
+                              });
+
+                              // Apply styles to the clicked thumbnail
+                              element.style.backgroundColor = "white";
+                              element.style.filter = "invert(0)";
+                        }
+
+                        // Set default styles for the first thumbnail on page load
+                        window.onload = function () {
+                              const thumbnails = document.querySelectorAll(".pdf-thumbnails");
+                              if (thumbnails.length > 0) {
+                                    const firstThumbnail = thumbnails[0];
+                                    firstThumbnail.style.backgroundColor = "white";
+                                    firstThumbnail.style.filter = "invert(0)";
+                              }
+                        };
+
+                  </script>
+            </div>
+
+            <!-- Link to JavaScript file -->
+            <script>
+                  const fileInput = document.getElementById("{{ form.pdf_file.id_for_label }}");
+                  const uploadForm = document.getElementById("pdf-upload-form");
+                  const dropZone = document.getElementById("upload-pdf-thumbnail");
+                  dropZone.addEventListener("click", () => {
+                        fileInput.click();
+                  });
+
+                  fileInput.addEventListener("change", handleFileUploadAndAddToSession);
+
+                  function handleFileUploadAndAddToSession() {
+                        const uploadForm = document.getElementById("pdf-upload-form");
+                        const formData = new FormData(uploadForm);
+
+                        // Upload and process the document
+                        fetch("{% url 'processDocuments' %}", {
+                              method: "POST",
+                              headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                              body: formData,
+                        })
+                              .then((response) => {
+                                    if (!response.ok) {
+                                          throw new Error("Unable to parse document.");
+                                    }
+                                    return response.json();
+                              })
+                              .then((data) => {
+                                    if (data.parsed_content && data.parsed_content.length > 0) {
+                                          // Create a new FormData object for adding to session
+                                          const sessionFormData = new FormData();
+                                          sessionFormData.append("session_id", "{{ session_id }}");
+                                          sessionFormData.append("parsed_content", JSON.stringify(data.parsed_content));
+
+                                          // Append the documents to the session form data
+                                          const files = uploadForm.querySelector('input[type="file"]').files;
+                                          Array.from(files).forEach((file) => {
+                                                sessionFormData.append("pdf_file", file);
+                                          });
+
+                                          // Send the parsed content to the add_to_session endpoint
+                                          fetch("{% url 'addToSession' %}", {
+                                                method: "POST",
+                                                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                                                body: sessionFormData,
+                                          })
+                                                .then((response) => {
+                                                      if (!response.ok) {
+                                                            throw new Error("Failed to add parsed content to the session.");
+                                                      }
+                                                      return response.json();
+                                                })
+                                                .then(() => {
+                                                      // Refresh the page on successful response
+                                                      location.reload();
+                                                })
+                                                .catch((error) => {
+                                                      console.error("Error:", error);
+                                                      alert("An error occurred while adding the parsed content to the session.");
+                                                });
+                                    } else {
+                                          alert("The system is unable to parse this document.");
+                                    }
+                              })
+                              .catch((error) => {
+                                    console.error("Error:", error);
+                                    alert("An error occurred while processing the document.");
+                              });
+                  }
+                  function handleKeyPress(event) {
+                        const sendButton = document.getElementById("sendButton");
+
+                        if (event.key === "Enter" && !sendButton.disabled) {
+                              event.preventDefault();
+                              const userInput = document.getElementById("userInput");
+                              const message = userInput.innerText.trim();
+                              const modelSelect = document.getElementById("modelSelect"); // Get the dropdown element
+                              const selectedModel = modelSelect.value; // Get the selected model from the dropdown
+                              sendMessage(message, selectedModel);
+                        }
+                  }
+
+                  async function sendMessage(message, selectedModel) {
+                        console.log(message, selectedModel)
+                        const userInput = document.getElementById("userInput");
+                        const sendButton = document.getElementById("sendButton");
+                        const sendIcon = document.getElementById("sendIcon");
+                        
+                        if (message === "") return;
+
+                        shouldStopStream = false; // Reset the flag at the start of each new message send
+                        conversation_index = conversation_index + 1;
+                        userInput.setAttribute("contenteditable", "false");
+                        sendButton.disabled = true;
+                        sendIcon.src = "/static/Assets/stop.png";
+                        sendIcon.onclick = stopStream; // Set click event to stop the stream
+
+                        appendUserMessage(message, flow_index, conversation_index);
+                        userInput.innerText = "";
+
+                        loadingExtractRelevantSchema();
+                        const chatContainer = document.getElementById("chat-container");
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                        try {
+                              const responseAgent = await fetch("{% url 'invoke_llm' %}", {
+                                    method: "POST",
+                                    headers: {
+                                          "Content-Type": "application/json",
+                                          "X-CSRFToken": "{{ csrf_token }}",
+                                    },
+                                    body: JSON.stringify({
+                                          session_id: "{{ session_id }}",
+                                          llm_name: selectedModel,
+                                          user_input: message,
+                                          flow_index: flow_index,
+                                          conversation_index: conversation_index,
+                                    }),
+                              });
+
+                              if (!responseAgent.ok) {
+                                    console.error("Error:", responseAgent.statusText);
+                                    streamBotResponse("Error: " + responseAgent.statusText, flow_index, conversation_index);
+                                    return;
+                              }
+
+                              const loadingExtractRelevantSchemaConst = document.getElementById("loading-extract-relevant-schema");
+                              if (loadingExtractRelevantSchemaConst) {
+                                    loadingExtractRelevantSchemaConst.remove();
+                              }
+
+                              streamBotResponse("", flow_index, conversation_index);
+                              const reader = responseAgent.body.getReader();
+                              const decoder = new TextDecoder("utf-8");
+                              const messageContainers = document.querySelectorAll(".bot-message-container");
+                              const messageContainer = messageContainers[messageContainers.length - 1];
+
+                              let resultText = messageContainer.querySelector(".bot-message");
+
+                              let done = false;
+                              let chatbot_output = "";
+                              let parsedLineToAppend = "";
+
+                              while (!done && !shouldStopStream) {
+                                    const { value, done: readerDone } = await reader.read();
+                                    done = readerDone;
+
+                                    if (value) {
+                                          const chunk = decoder.decode(value);
+                                          const lines = chunk.split();
+                                          const parsedLines = lines; //.map((line) => line.replace(/^data: /, "")).filter((line) => line !== "[DONE]");
+
+                                          for (const parsedLine of parsedLines) {
+                                                // resultText.innerHTML += parsedLine;
+                                                parsedLineToAppend = parsedLine.replace("[DONE]", "");
+                                                chatbot_output += parsedLineToAppend;
+                                                chatbot_output_html = marked.parse(chatbot_output);
+                                                resultText.innerHTML = chatbot_output_html;
+
+                                                const chatContainer = document.getElementById("chat-container");
+                                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                                          }
+                                    }
+                              }
+                        } catch (error) {
+                              console.error("Error during message sending:", error);
+                              streamBotResponse("Error: Something went wrong.", flow_index, conversation_index);
+                        } finally {
+                              resetSendButton();
+                        }
+                  }
+
+                  // Function to stop the stream
+                  function stopStream() {
+                        shouldStopStream = true;
+                  }
+
+                  // Function to reset the send button and stop icon when done
+                  function resetSendButton() {
+                        const userInput = document.getElementById("userInput");
+                        const sendButton = document.getElementById("sendButton");
+                        const sendIcon = document.getElementById("sendIcon");
+
+                        userInput.setAttribute("contenteditable", "true");
+                        sendButton.disabled = false;
+                        sendIcon.src = "/static/Assets/icons8-arrow-100.png";
+                        sendIcon.onclick = null; // Remove the stopStream function from the click event
+                  }
+
+                  function streamBotResponse(chunk, parent_node_key, child_node_key) {
+                        const chatContainer = document.getElementById("chat-container");
+
+                        let messageContainer = document.createElement("div");
+                        messageContainer.classList.add("bot-message-container");
+
+                        // Set parent_node_key and conversation_index as attributes
+                        messageContainer.setAttribute("parent_node_key", parent_node_key);
+                        messageContainer.setAttribute("child_node_key", child_node_key);
+
+                        const botIconContainer = document.createElement("div");
+                        botIconContainer.classList.add("bot-icon-container");
+
+                        const messageElement = document.createElement("div");
+                        messageElement.classList.add("message", "bot-message");
+
+
+                        messageContainer.appendChild(messageElement);
+
+                        const actionButtonContainer = document.createElement("div");
+                        actionButtonContainer.classList.add("action-button-container");
+                        actionButtonContainer.style.opacity = "0";
+
+                        const copyButton = createCopyButton(messageElement);
+
+                        actionButtonContainer.appendChild(copyButton);
+
+                        messageContainer.appendChild(actionButtonContainer);
+
+                        messageContainer.onmouseover = () => {
+                              actionButtonContainer.style.opacity = "1";
+                        };
+                        messageContainer.onmouseout = () => {
+                              actionButtonContainer.style.opacity = "0";
+                        };
+
+                        chatContainer.appendChild(messageContainer);
+
+                        messageElement.innerHTML += marked.parse(chunk);
+
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                  }
+
+                  function cleanInput() {
+                        const userInput = document.getElementById("userInput");
+                        userInput.innerHTML = userInput.innerHTML.replace(/<span[^>]*>(.*?)<\/span>/g, "$1");
+                  }
+
+                  function appendUserMessage(content, parent_node_key, child_node_key) {
+                        const chatContainer = document.getElementById("chat-container");
+
+                        const messageContainer = document.createElement("div");
+                        messageContainer.classList.add("user-message-container");
+
+                        // Create a container for the edit icon
+                        const editIconContainer = document.createElement("div");
+                        editIconContainer.classList.add("edit-icon-container");
+
+                        // Create the edit icon element
+                        const editIcon = document.createElement("img");
+                        editIcon.classList.add("edit-icon");
+                        editIcon.id = "editIcon";
+                        editIcon.src = "/static/Assets/edit-icon.png"; // Adjust the path if needed
+
+                        // Append the edit icon to the container
+                        editIconContainer.appendChild(editIcon);
+
+                        // Create the main content wrapper
+                        const messageContentWrapper = document.createElement("div");
+                        messageContentWrapper.classList.add("user-message");
+                        messageContentWrapper.classList.add("message");
+
+                        // Create the text content container
+                        const textContentContainer = document.createElement("div");
+                        textContentContainer.classList.add("text-content-container");
+
+                        // Store the original content in a variable
+                        let originalContent = content;
+                        textContentContainer.textContent = content;
+
+                        // Create the dropdown and edit buttons container
+                        const actionContainer = document.createElement("div");
+                        actionContainer.classList.add("action-container");
+
+                        // Dropdown container (initially hidden)
+                        const dropdownContainer = document.createElement("div");
+                        dropdownContainer.classList.add("llm-dropdown-container");
+                        dropdownContainer.style.display = "none";
+
+                        const label = document.createElement("label");
+                        label.setAttribute("for", "modelSelect");
+                        dropdownContainer.appendChild(label);
+
+                        const select = document.createElement("select");
+                        select.id = "modelSelect";
+                        select.name = "model";
+
+                        const option1 = document.createElement("option");
+                        option1.value = "llama";
+                        option1.textContent = "LLAMA";
+                        const option2 = document.createElement("option");
+                        option2.value = "dbrx";
+                        option2.textContent = "DBRX";
+                        const option3 = document.createElement("option");
+                        option3.value = "mistral";
+                        option3.textContent = "MISTRAL";
+
+                        select.appendChild(option1);
+                        select.appendChild(option2);
+                        select.appendChild(option3);
+                        dropdownContainer.appendChild(select);
+
+                        // Edit buttons container (initially hidden)
+                        const editButtonsContainer = document.createElement("div");
+                        editButtonsContainer.classList.add("edit-message-buttons-container");
+                        editButtonsContainer.style.display = "none";
+
+                        const cancelButton = document.createElement("div");
+                        cancelButton.classList.add("edit-cancel-button");
+                        cancelButton.textContent = "Cancel";
+
+                        const sendButton = document.createElement("div");
+                        sendButton.classList.add("edit-send-button");
+                        sendButton.textContent = "Send";
+
+                        editButtonsContainer.appendChild(cancelButton);
+                        editButtonsContainer.appendChild(sendButton);
+
+                        // Append dropdown and edit buttons to the action container
+                        actionContainer.appendChild(dropdownContainer);
+                        actionContainer.appendChild(editButtonsContainer);
+                        actionContainer.style.display = "none";
+
+                        // Append the text content and action container to the main content wrapper
+                        messageContentWrapper.appendChild(textContentContainer);
+                        messageContentWrapper.appendChild(actionContainer);
+
+                        // Append the message content wrapper and edit icon container to the message container
+                        messageContainer.appendChild(messageContentWrapper);
+                        messageContainer.appendChild(editIconContainer);
+                        // Set parent_node_key and child_node_key as attributes
+                        messageContainer.setAttribute("parent_node_key", parent_node_key);
+                        messageContainer.setAttribute("child_node_key", child_node_key);
+
+                        const allUserMessages = document.createElement("div");
+                        allUserMessages.classList.add("all-user-messages");
+                        allUserMessages.appendChild(messageContainer);
+
+                        // Append the message container to the chat container
+                        chatContainer.appendChild(allUserMessages);
+
+                        // Scroll to the bottom of the chat container
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                        // Add Event Listeners
+                        editIconContainer.addEventListener("click", () => {
+                              textContentContainer.contentEditable = true; // enable editing
+                              textContentContainer.style.height = '150px';
+                              textContentContainer.style.overflow = 'scroll';
+                              textContentContainer.style.overflowX = 'hidden';
+
+                              textContentContainer.style.backgroundColor = 'white';
+                              textContentContainer.style.color = 'black';
+                              textContentContainer.style.padding = '10px';
+                              textContentContainer.style.borderRadius = '8px';
+                              textContentContainer.style.border = '2px solid black';
+
+
+                              messageContentWrapper.style.width = "80%";
+                              messageContentWrapper.style.maxWidth = "80%";
+                              
+                              
+                              dropdownContainer.style.display = "block";
+                              editButtonsContainer.style.display = "flex";
+                              editIcon.style.display = "none";
+                              actionContainer.style.display = "inline-flex";
+                              editIconContainer.style.display = "none";
+                              
+                        });
+
+                        cancelButton.addEventListener("click", () => {
+                              textContentContainer.contentEditable = false; // Disable editing
+                              textContentContainer.style.height = 'auto';
+                              textContentContainer.style.overflow = 'auto';
+
+
+                              textContentContainer.style.backgroundColor = '#063970';
+                              textContentContainer.style.color = 'white';
+                              textContentContainer.style.padding = '0px';
+                              textContentContainer.style.borderRadius = '0px';
+                              textContentContainer.style.border = '0px solid black';
+
+
+                              messageContentWrapper.style.width = "auto";
+                              messageContentWrapper.style.maxWidth = "50%";
+
+                              // Restore the original content
+                              textContentContainer.textContent = originalContent;
+
+
+                              dropdownContainer.style.display = "none";
+                              editButtonsContainer.style.display = "none";
+                              editIcon.style.display = "block";
+                              actionContainer.style.display = "none";
+                              editIconContainer.style.display = "inline-grid";
+                        });
+
+                        sendButton.addEventListener("click", () => {
+                              textContentContainer.contentEditable = false; // Disable editing
+                              textContentContainer.style.height = 'auto';
+                              textContentContainer.style.overflow = 'auto';
+
+                              textContentContainer.style.backgroundColor = '#063970';
+                              textContentContainer.style.color = 'white';
+                              textContentContainer.style.padding = '0px';
+                              textContentContainer.style.borderRadius = '0px';
+                              textContentContainer.style.border = '0px solid black';
+
+                              const selectedModel = select.value;
+                              const messageContent = textContentContainer.textContent;
+
+                              // Restore the original content
+                              textContentContainer.textContent = originalContent;
+
+                              // same as cancel button
+                              textContentContainer.contentEditable = false; // Disable editing
+                              dropdownContainer.style.display = "none";
+                              editButtonsContainer.style.display = "none";
+                              editIcon.style.display = "block";
+                              actionContainer.style.display = "none";
+                              editIconContainer.style.display = "inline-grid";
+
+                              sendMessage(messageContent, selectedModel);
+                        });
+                        }
+
+                  function loadingExtractRelevantSchema() {
+                        const chatContainer = document.getElementById("chat-container");
+                        const loadingMessageContainer = document.createElement("div");
+                        loadingMessageContainer.classList.add("bot-loading-message-container");
+                        loadingMessageContainer.textContent = "Thinking...";
+                        loadingMessageContainer.id = "loading-extract-relevant-schema";
+                        chatContainer.appendChild(loadingMessageContainer);
+                  }
+
+                  function createCopyButton(messageElement) {
+                        const copyButton = document.createElement("button");
+                        copyButton.classList.add("copy-button");
+
+                        const copyIcon = document.createElement("img");
+                        copyIcon.src = "/static/Assets/copy.png";
+                        copyIcon.classList.add("action-icon");
+                        copyButton.appendChild(copyIcon);
+                        copyButton.onclick = () => {
+                              copyToClipboard(messageElement.textContent);
+                              changeIconTemporary(copyIcon, "/static/Assets/copy-checked.png", 3000);
+                        };
+
+                        return copyButton;
+                  }
+
+                  function copyToClipboard(text) {
+                        navigator.clipboard
+                              .writeText(text)
+                              .then(() => {})
+                              .catch((err) => {
+                                    console.error("Failed to copy: ", err);
+                              });
+                  }
+
+                  function checkInput() {
+                        const userInput = document.getElementById("userInput").textContent.trim();
+                        const sendButton = document.getElementById("sendButton");
+
+                        if (userInput.length > 0) {
+                              sendButton.style.backgroundImage = "linear-gradient(45deg, #063970, #063970)";
+                        } else {
+                              sendButton.style.backgroundImage = "linear-gradient(45deg, rgb(145 145 145), rgb(147 147 147))";
+                        }
+                  }
+
+                  function handlePaste(event) {
+                        event.preventDefault();
+
+                        const text = event.clipboardData.getData("text/plain");
+
+                        document.execCommand("insertText", false, text);
+                  }
+            </script>
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                  function renderPreviousConversations(conversations) {
+                        conversations.forEach((conversationSet) => {
+                              conversationSet.forEach((conversation) => {
+                                    // Extract user and llama messages
+                                    const userMessage = conversation.user_input;
+                                    const llamaMessage = conversation.llama;
+
+                                    // Render the user's message
+                                    appendUserMessage(userMessage, flow_index, conversation_index);
+
+                                    // Render the model's (llama's) response
+                                    streamBotResponse(llamaMessage, flow_index, conversation_index);
+
+                                    // Increment the conversationIndex for each pair (user + llama)
+                                    conversation_index++;
+                              });
+                        });
+                  }
+
+                  const previousConversationsBase64 = "{{ previous_conversations }}";
+
+                  // Decode the base64 string and parse it as JSON
+                  const previous_conversations = JSON.parse(atob(previousConversationsBase64));
+
+                  // Call the function to render previous conversations
+                  let shouldStopStream = false; // Add this flag to control the streaming
+                  let flow_index = 0;
+                  let conversation_index = 0;
+
+                  renderPreviousConversations(previous_conversations);
+            </script>
+            <script>
+                  document.getElementById("expand-icon-container").addEventListener("click", function () {
+                        const pdfThumbnailsContainer = document.querySelector(".pdf-thumbnails-container");
+                        const s2Pdf = document.querySelector(".s2-pdf");
+
+                        if (pdfThumbnailsContainer.style.display !== "none") {
+                              // Expand state
+                              pdfThumbnailsContainer.style.display = "none";
+                              s2Pdf.style.width = "0px";
+                        } else {
+                              // Default state
+                              pdfThumbnailsContainer.style.display = "flex";
+                              s2Pdf.style.width = "600px";
+                        }
+                  });
+            </script>
+      </body>
+</html>

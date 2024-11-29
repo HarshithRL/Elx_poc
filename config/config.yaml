@@ -1,0 +1,21 @@
+google_model:
+  name: "gemini-1.5-flash"
+
+
+azure:
+  storage_account_name : 'testderg001a312'
+  container_name : 'cairnpoc2'
+
+llm_params:
+  openai_params:
+    model : "gpt-3.5-turbo"
+    temperature: 0.3
+  llama_params:
+    model : "databricks-meta-llama-3-1-70b-instruct"
+    temperature: 0.3
+  dbrx_params:
+    model : "databricks-dbrx-instruct"
+    temperature: 0.3
+  gemini_params:
+    model : 
+    temperature: 0.3

@@ -1,0 +1,424 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+      <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <link rel="stylesheet" href="{% static 'css/display_styles.css' %}" />
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+            <title>DocuAI</title>
+      </head>
+      <body>
+            <div class="body" style="height: 100%">
+                  <header class="header">
+                        <div class="navbar">
+                              <!-- Home button -->
+                              <a href="{% url 'homepage' %}" class="home-btn">
+                                    <img src="{% static 'Assets/home.png' %}" alt="Home Icon" />
+                              </a>
+                        </div>
+                        <!-- </div> -->
+                        <div class="logo-section">
+                              <img class="v-logo" src="{% static 'Assets/Logo1.svg' %}" alt="vedanta Logo" />
+                              <div class="c-logo-bg"><img class="c-logo" src="{% static 'Assets/c-logo.svg' %}" alt="cairn logo" /></div>
+                        </div>
+                        <!-- <div class="user-logo-bg"> -->
+                        <!-- Navigation bar -->
+                        <div class="navbar">
+                              <!-- User profile section -->
+                              <div class="profile-menu">
+                                    <img class="user-profile-icon" src="{% static 'Assets/user.svg' %}" alt="User Profile" />
+
+                                    <!-- Popup menu -->
+                                    <div class="profile-popup">
+                                          <a href="{% url 'homepage' %}" class="popup-link">Settings</a>
+                                          <a href="{% url 'logout' %}" class="popup-link">Logout</a>
+                                    </div>
+                              </div>
+                        </div>
+                  </header>
+                  <section class="main-section" style="width: 100%">
+                        <div class="section1">
+                              <div class="conversation">
+                                    {% for conversation in previous_conversations %}
+                                    <!-- ----------user input------------>
+                                    <div class="part1">
+                                          <div class="conv-block-details">
+                                                <img class="userlogo" src="/static/Assets/user-2.svg" alt="User Logo" />
+                                                <p>{{ user_name }}</p>
+                                          </div>
+                                          <div class="conv-message">{{ conversation.user_input }}</div>
+                                    </div>
+                                    {% endfor %}
+                              </div>
+
+                              <!-- Send button -->
+                              <div class="user-input-part">
+                                    <div class="part4">
+                                          <input type="text" placeholder="Type a message" id="messageInput" />
+                                          <button id="sendButton">
+                                                <img src="{% static 'Assets/send.svg' %}" alt="Send" />
+                                          </button>
+                                    </div>
+                              </div>
+                        </div>
+                        <div class="section2">
+                              <div class="expand-pdf-icon-container">
+                                    <img class="expand-icon" id="expand-icon-container" src="/static/Assets/expand-right.svg" alt="Expand Icon" style="transform: rotate(0deg)" />
+                              </div>
+                              <div class="s2-pdf">
+                                    {% for pdf in pdf_uploads %}
+                                    <div class="iframe-container">
+                                          <iframe class="iframe-pdf" src="{{ pdf.file.url }}"></iframe>
+                                          <!-- Update to use pdf.file.url -->
+                                    </div>
+                                    {% endfor %}
+                              </div>
+                        </div>
+                  </section>
+            </div>
+            <script type="module" src="{% static 'scripts/display_script.css' %}"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+            <script>
+                  let messageIndex = {{last_message_index}};
+
+                  async function sendMessage() {
+                      const userInput = document.getElementById("messageInput");
+                      const sendButton = document.getElementById("sendButton");
+
+                      const message = userInput.value.trim();
+                      if (message === "") return;
+
+                      userInput.setAttribute("disabled", "true");
+                      sendButton.disabled = true;
+
+                      appendMessage(message, "user-message"); // Append the user's message to the conversation
+                      userInput.value = ""; // Clear input box
+
+                      // Create conversation-grid right after user's message is sent
+                      const conversationDiv = document.querySelector(".conversation");
+                      const conversationGrid = document.createElement("div");
+                      conversationGrid.classList.add("conversation-grid");
+                      conversationDiv.appendChild(conversationGrid); // Append the conversation grid to the conversation div
+                      conversationDiv.scrollTop = conversationDiv.scrollHeight; // Scroll to the bottom of the conversation
+
+                      try {
+                          // First send request to /get_relavant_content
+                          const relavantResponse = await fetch("{% url 'get_relavant_content' %}", {
+                              method: "POST",
+                              headers: {
+                                  "Content-Type": "application/json",
+                                  "X-CSRFToken": "{{ csrf_token }}",
+                              },
+                              body: JSON.stringify({ user_input: message, session_id: "{{ session_id }}" }),
+                          });
+
+                          if (!relavantResponse.ok) {
+                              throw new Error(`Error: ${relavantResponse.statusText}`);
+                          }
+
+                          const relavantData = await relavantResponse.json();
+                          const userRequest = relavantData.user_request;
+
+                          // Now invoke the LLMs for their respective responses and stream them
+                          await Promise.all([
+                              streamBotResponse(message, "{% url 'invoke_llm' %}", userRequest, "llama", messageIndex, conversationGrid),
+                          ]);
+                      } catch (error) {
+                          console.error("Error during message sending:", error);
+                          appendErrorMessage("Something went wrong.");
+                      } finally {
+                          messageIndex += 1;
+                          userInput.removeAttribute("disabled");
+                          sendButton.disabled = false;
+                      }
+                  }
+
+                  // Stream bot response and update the corresponding grid div
+                  async function streamBotResponse(userInput, apiUrl, userRequest, model, messageIndex, conversationGrid) {
+                      try {
+                          // Send the initial request to start streaming
+                          const response = await fetch(`${apiUrl}`, {
+                              method: "POST",
+                              headers: {
+                                  "Content-Type": "application/json",
+                                  "X-CSRFToken": "{{ csrf_token }}",
+                              },
+                              body: JSON.stringify({ user_request: userRequest, session_id: "{{ session_id }}" }),
+                          });
+
+                          if (!response.ok) {
+                              throw new Error(`Error: ${response.statusText}`);
+                          }
+
+                          const reader = response.body.getReader();
+                          const decoder = new TextDecoder("utf-8");
+                          let done = false;
+                          const messageContainer = createMessageContainer(model, messageIndex, conversationGrid); // Create a div for each model
+                          let llmOutput = ""; // Variable to accumulate all the parsed lines (LLM output)
+
+                          while (!done) {
+                              const { value, done: readerDone } = await reader.read();
+                              done = readerDone;
+
+                              if (value) {
+                                  const chunk = decoder.decode(value);
+                                  const lines = chunk
+                                      .split("\n")
+                                      .map((line) => line.replace(/^data: /, ""))
+                                      .filter((line) => line !== "[DONE]");
+
+                                  // Accumulate all parsed lines into llmOutput
+                                  for (const parsedLine of lines) {
+                                      appendChunkToMessage(model, parsedLine, messageIndex); // Append chunk to message div
+                                      llmOutput += parsedLine; // Store the parsed lines (LLM output)
+                                  }
+                              }
+                          }
+
+                          // Add feedback buttons once the content starts streaming
+                          if (!messageContainer.querySelector(".feedback-buttons")) {
+                              const feedbackDiv = createFeedbackButtons(model, messageIndex, "{{ session_id }}");
+                              messageContainer.appendChild(feedbackDiv);
+                          }
+
+                          // After streaming is done, send the LLM output to the appropriate update function based on the model
+                          switch (model) {
+                              case "llama":
+                                  await updateLlamaOutput(userInput, llmOutput);
+                                  break;
+                              case "openai":
+                                  await updateOpenAIOutput(userInput, llmOutput);
+                                  break;
+                              case "dbrx":
+                                  await updateDBRXOutput(userInput, llmOutput);
+                                  break;
+                              case "gemini":
+                                  await updateGeminiOutput(userInput, llmOutput);
+                                  break;
+                              default:
+                                  console.warn(`No update function found for model: ${model}`);
+                          }
+                      } catch (error) {
+                          console.error(`Error in ${model}-${messageIndex} response:`, error);
+                          appendErrorMessage(`Error with ${model}-${messageIndex} model.`);
+                      }
+                  }
+
+                  // Create a message container for each model and add it to the conversation grid
+                  function createMessageContainer(model, messageIndex, conversationGrid) {
+                      // Create a container for the specific LLM model
+                      const messageContainer = document.createElement("div");
+                      messageContainer.classList.add("part1", "bot-msg-part");
+
+                      // Create the details block for model label and logo
+                      const convBlockDetails = document.createElement("div");
+                      convBlockDetails.classList.add("conv-block-details");
+
+                      const userLogo = document.createElement("img");
+                      userLogo.classList.add("userlogo");
+                      userLogo.src = `/static/Assets/${model}.svg`; // Dynamic logo based on model
+                      convBlockDetails.appendChild(userLogo);
+
+                      const modelLabel = document.createElement("p");
+                      modelLabel.textContent = model.charAt(0).toUpperCase() + model.slice(1); // Capitalize model name
+                      convBlockDetails.appendChild(modelLabel);
+
+                      // Create the conversation message div
+                      const convMessage = document.createElement("div");
+                      convMessage.classList.add("conv-message");
+                      convMessage.setAttribute("id", `message-${model}-${messageIndex}`); // Unique ID for each model response
+
+                      messageContainer.appendChild(convBlockDetails);
+                      messageContainer.appendChild(convMessage);
+
+                      // Append to conversation grid
+                      conversationGrid.appendChild(messageContainer);
+                      return convMessage; // Return the message div to append LLM responses later
+                  }
+
+
+                  function createFeedbackButtons(model, messageIndex, sessionId) {
+                        const feedbackDiv = document.createElement("div");
+                        feedbackDiv.classList.add("feedback-buttons");
+
+                        // Good feedback button
+                        const goodButton = document.createElement("button");
+                        goodButton.classList.add("feedback-btn", "good");
+                        goodButton.setAttribute("data-feedback", "good");
+                        goodButton.setAttribute("data-session", messageIndex);
+                        goodButton.setAttribute("data-model", model);
+                        goodButton.setAttribute("data-feedbackidx", sessionId);
+
+                        const goodThumbIcon = document.createElement("img");
+                        goodThumbIcon.classList.add("thumb-icon", "good");
+                        goodThumbIcon.src = "/static/Assets/neutral-thumbs-up.svg";
+                        goodThumbIcon.alt = "Good thumbs icon";
+                        goodButton.appendChild(goodThumbIcon);
+
+                        // Bad feedback button
+                        const badButton = document.createElement("button");
+                        badButton.classList.add("feedback-btn", "bad");
+                        badButton.setAttribute("data-feedback", "bad");
+                        badButton.setAttribute("data-session", messageIndex);
+                        badButton.setAttribute("data-model", model);
+                        badButton.setAttribute("data-feedbackidx", sessionId);
+
+                        const badThumbIcon = document.createElement("img");
+                        badThumbIcon.classList.add("thumb-icon", "bad");
+                        badThumbIcon.src = "/static/Assets/neutral-thumbs-down.svg";
+                        badThumbIcon.alt = "Bad thumbs icon";
+                        badButton.appendChild(badThumbIcon);
+
+                        // Append both buttons to the feedback div
+                        feedbackDiv.appendChild(goodButton);
+                        feedbackDiv.appendChild(badButton);
+
+                        return feedbackDiv;
+                  }
+
+                  // Use this function inside your streamBotResponse function to add feedback buttons
+
+                  function appendChunkToMessage(model, chunk, messageIndex) {
+                        const messageContainer = document.getElementById(`message-${model}-${messageIndex}`);
+                        if (messageContainer) {
+                              messageContainer.innerHTML += chunk;
+                        }
+                  }
+
+                  // Append user's message to the conversation
+                  function appendMessage(message, className) {
+                        const conversationDiv = document.querySelector(".conversation");
+                        conversationDiv.innerHTML += `
+                              <div class="part1">
+                                    <div class="conv-block-details">
+                                    <img class="userlogo" src="/static/Assets/user-2.svg" alt="User Logo" />
+                                    <p>{{ user_name }}</p>
+                                    </div>
+                                    <div class="conv-message ${className}">${message}</div>
+                              </div>
+                        `;
+                        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                  }
+
+                  // Append error message to the conversation
+                  function appendErrorMessage(errorMessage) {
+                        const conversationDiv = document.querySelector(".conversation");
+                        conversationDiv.innerHTML += `
+                              <div class="part1">
+                                    <div class="conv-message error-message">${errorMessage}</div>
+                              </div>`;
+                        conversationDiv.scrollTop = conversationDiv.scrollHeight;
+                  }
+            </script>
+            <script>
+                  document.getElementById("expand-icon-container").addEventListener("click", function () {
+                        const userInputPart = document.querySelector(".user-input-part");
+                        const part4 = document.querySelector(".part4");
+                        const expandIcon = document.querySelector(".expand-icon");
+                        const s2Pdf = document.querySelector(".s2-pdf");
+                        const section1 = document.querySelector(".section1");
+                        const section2 = document.querySelector(".section2");
+
+                        if (s2Pdf.style.width === "0px") {
+                              // these lines will Show PDF
+                              userInputPart.style.width = "50%";
+                              part4.style.width = "90%";
+                              expandIcon.style.transform = "rotate(0deg)";
+                              section1.style.width = "50%";
+                              section2.style.width = "200%";
+
+                              s2Pdf.style.width = "100%";
+                              s2Pdf.style.overflow = "auto";
+                              s2Pdf.style.padding = "12px";
+                        } else {
+                              // these lines will Hide PDF
+                              userInputPart.style.width = "90%";
+                              part4.style.width = "50%";
+                              expandIcon.style.transform = "rotate(180deg)";
+                              section1.style.width = "auto";
+                              section2.style.width = "0%";
+
+                              s2Pdf.style.width = "0px";
+                              s2Pdf.style.overflow = "visible";
+                              s2Pdf.style.padding = "0px";
+                        }
+                  });
+            </script>
+
+            <script>
+                  // Use event delegation
+                  document.querySelector(".conversation").addEventListener("click", function (event) {
+                        if (event.target.closest(".feedback-btn")) {
+                              const button = event.target.closest(".feedback-btn");
+                              const feedback = button.getAttribute("data-feedback");
+                              const feedback_index = button.getAttribute("data-session");
+                              const modelType = button.getAttribute("data-model");
+
+                              // Find both good and bad thumb icons
+                              const goodThumbIcon = button.parentElement.querySelector(".thumb-icon.good");
+                              const badThumbIcon = button.parentElement.querySelector(".thumb-icon.bad");
+
+                              // Check if feedback is already applied to toggle it back to neutral
+                              if (feedback === "good" && goodThumbIcon.src.includes("good-thumbs-up.svg")) {
+                                    // If 'good' was already selected, revert to neutral
+                                    goodThumbIcon.src = "/static/Assets/neutral-thumbs-up.svg";
+                              } else if (feedback === "bad" && badThumbIcon.src.includes("bad-thumbs-down.svg")) {
+                                    // If 'bad' was already selected, revert to neutral
+                                    badThumbIcon.src = "/static/Assets/neutral-thumbs-down.svg";
+                              } else {
+                                    // Update icon based on the feedback
+                                    if (feedback === "good") {
+                                          goodThumbIcon.src = "/static/Assets/good-thumbs-up.svg"; // Good thumb image
+                                          badThumbIcon.src = "/static/Assets/neutral-thumbs-down.svg"; // Reset bad thumb to neutral
+                                    } else if (feedback === "bad") {
+                                          goodThumbIcon.src = "/static/Assets/neutral-thumbs-up.svg"; // Reset good thumb to neutral
+                                          badThumbIcon.src = "/static/Assets/bad-thumbs-down.svg"; // Bad thumb image
+                                    }
+                              }
+                              console.log("{{ session_id }}", modelType, feedback, feedback_index);
+                              // Send feedback to the server
+                              fetch("{% url 'feedback_view' %}", {
+                                    method: "POST",
+                                    headers: {
+                                          "Content-Type": "application/json",
+                                          "X-CSRFToken": "{{ csrf_token }}",
+                                    },
+                                    body: JSON.stringify({
+                                          session_id: "{{ session_id }}",
+                                          model: modelType,
+                                          feedback: feedback,
+                                          feedback_index: feedback_index,
+                                    }),
+                              })
+                                    .then((response) => response.json())
+                                    .then((data) => {
+                                          console.log("Feedback submitted:", data);
+                                    })
+                                    .catch((error) => {
+                                          console.error("Error:", error);
+                                    });
+                        }
+                  });
+            </script>
+            <script>
+                  // Toggle the visibility of the popup when the profile icon is clicked
+                  document.querySelector(".user-profile-icon").addEventListener("click", function () {
+                        const profileMenu = document.querySelector(".profile-menu");
+                        profileMenu.classList.toggle("active");
+                  });
+
+                  // Close the popup when clicking outside of it
+                  document.addEventListener("click", function (event) {
+                        const profileMenu = document.querySelector(".profile-menu");
+                        if (!profileMenu.contains(event.target) && !event.target.classList.contains("user-profile-icon")) {
+                              profileMenu.classList.remove("active");
+                        }
+                  });
+            </script>
+      </body>
+</html>

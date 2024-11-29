@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+      <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>DocuAI</title>
+            <link rel="stylesheet" href="{% static 'css/homepage_styles.css' %}" />
+            <link rel="stylesheet" href="{% static 'css/user_login.css' %}" />
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
+      </head>
+
+      <body>
+            <header class="header">
+                  <!-- <div class="user-logo-bg"> -->
+                  <div class="navbar">
+                        <!-- Home button -->
+                        <a href="{% url 'homepage' %}" class="home-btn">
+                              <img src="{% static 'Assets/home.png' %}" alt="Home Icon" />
+                        </a>
+                  </div>
+                  <!-- </div> -->
+                  <div class="logo-section">
+                        <img class="v-logo" src="{% static 'Assets/electrolux-logo.svg' %}" alt="vedanta Logo" />
+                  </div>
+                  <!-- Navigation bar -->
+                  <div class="navbar">
+                        <!-- User profile section -->
+                        <div class="profile-menu">
+                              <img class="user-profile-icon" src="{% static 'Assets/user.svg' %}" alt="User Profile" />
+
+                              <!-- Popup menu -->
+                              <div class="profile-popup">
+                                    <a href="{% url 'settings' %}" class="popup-link">Settings</a>
+                                    <a href="{% url 'logout' %}" class="popup-link">Logout</a>
+                              </div>
+                        </div>
+                  </div>
+            </header>
+            <div class="settings-Right-Part">
+                  <section class="User-Profile-Details">
+                        <div class="Profile-Container">
+                              <div class="user-Image">
+                                    <img src="{% static 'Assets/Female-Writer-Is-Thinking.svg' %}" alt="Writter" />
+                              </div>
+                              <div>
+                                    <p>COMING SOON</p>
+                              </div>
+                        </div>
+                  </section>
+            </div>
+
+            <script src="./Login-Signup-JS/Auth.js"></script>
+      </body>
+      <script>
+            // Toggle the visibility of the popup when the profile icon is clicked
+            document.querySelector(".user-profile-icon").addEventListener("click", function () {
+                  const profileMenu = document.querySelector(".profile-menu");
+                  profileMenu.classList.toggle("active");
+            });
+
+            // Close the popup when clicking outside of it
+            document.addEventListener("click", function (event) {
+                  const profileMenu = document.querySelector(".profile-menu");
+                  if (!profileMenu.contains(event.target) && !event.target.classList.contains("user-profile-icon")) {
+                        profileMenu.classList.remove("active");
+                  }
+            });
+      </script>
+</html>

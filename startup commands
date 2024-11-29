@@ -1,0 +1,5 @@
+apt update
+apt install default-jdk -y
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64/
+
+apt-get install python3-pil tesseract-ocr libtesseract-dev tesseract-ocr-eng tesseract-ocr-script-latn

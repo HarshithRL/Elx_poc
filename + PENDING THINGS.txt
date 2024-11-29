@@ -1,0 +1,36 @@
+generic:
+- add logging
+- add a favicon
+- add documentation
++ push to devops
+- create a CI/CD pipeline to azure app service
+- Make sure that OCR is working in app service
+
+sesison:
+- Each session should handle multiple pdfs.
+- if admin sessions don't have a pdf that is already present in cloud, get user confirmation and then create a session out of it.
+- admin uploaded pdfs, should be shown individually.
+- when admin uploads multiple pdfs, those pdf's should be stored separately and the session created, should have multiple pdfs.
+- when a user is importing files from cloud, they should be able to select multiple pdfs from the "Select from cloud" section and create a session out of it
+
+LLM:
++ error handling for alternating roles
++ parallel requests
++ implement streaming output
+
+UI:
+- show a loading animation while pdf is being parsed
+- show some animation while we stream the llm output
+- Show only one LLM response at a time
+- copy icon for LLM responses
+- Fix the UI for how sessions are shown
+- fix the upload button for admin
+- Show multiple pdfs.
+
+retreiver:
+- handle tables
+- handle images
+- handle summary using batches of 3 pages
+
+
+Feedback is not woring for new responses. 

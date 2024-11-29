@@ -1,0 +1,554 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+      <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>DocuAI</title>
+            <link rel="stylesheet" href="{% static 'css/homepage_styles.css' %}" />
+
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+            <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+
+            <script src="{% static 'scripts/Script.js' %}"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+      </head>
+
+      <body>
+            <header class="header">
+                  <div class="navbar">
+                        <!-- Home button -->
+                        <a href="{% url 'homepage' %}" class="home-btn">
+                              <img src="{% static 'Assets/home.png' %}" alt="Home Icon" />
+                        </a>
+                  </div>
+                  <div class="logo-section">
+                        <img class="v-logo" src="{% static 'Assets/electrolux-logo.svg' %}" alt="vedanta Logo" />
+                  </div>
+                  <!-- Navigation bar -->
+                  <div class="navbar">
+                        <!-- User profile section -->
+                        <div class="profile-menu">
+                              <img class="user-profile-icon" src="{% static 'Assets/user.svg' %}" alt="User Profile" />
+
+                              <!-- Popup menu -->
+                              <div class="profile-popup">
+                                    <a href="{% url 'settings' %}" class="popup-link">Settings</a>
+                                    <a href="{% url 'logout' %}" class="popup-link">Logout</a>
+                              </div>
+                        </div>
+                  </div>
+            </header>
+            <section class="before-file-upload">
+                  <div class="section-header-container">
+                        <div class="section-heading">
+                              <h1 class="title">Welcome to DocuAI</h1>
+                        </div>
+                        <div class="section-discription">
+                              <p>Get started by uploading your document below and ask your first question!</p>
+                              <p>Your personal AI-powered document assistant, designed to help you extract key information, answer questions, and find insights in your documents—effortlessly. Simply upload your files, and let AI do the heavy lifting. Whether it's a contract, research paper, report, or any other document, ask your questions, and get clear, instant answers.</p>
+                        </div>
+                        <div class="discription-question">
+                              <h6>Start your research with a question and let us find the answers!</h6>
+                        </div>
+                  </div>
+
+                  <div class="multiple-upload-container">
+                        <div class="tab-container">
+                              <div class="tab" id="upload-tab" onclick="showTab('upload')">Upload</div>
+                              <div class="tab" id="cloud-tab" onclick="showTab('cloud')">Cloud</div>
+                        </div>
+
+                        <!-- Upload Container -->
+                        <div id="upload-container" class="tab-content">
+                              <form method="POST" enctype="multipart/form-data" class="upload-form" id="pdf-upload-form">
+                                    {% csrf_token %} {{ form.non_field_errors }} {{ form.pdf_file.errors }}
+
+                                    <!-- Drop file container -->
+                                    <div class="drop-file-container" id="drop-zone">
+                                          <div class="upload-icon">
+                                                <img src="{% static 'Assets/bytesize_upload.svg' %}" alt="Upload" />
+                                          </div>
+                                          <div class="input-file">
+                                                <label for="file-upload">
+                                                      Drop your files here or
+                                                      <span class="Browse">Browse</span>
+                                                </label>
+                                          </div>
+
+                                          <!-- Render the hidden file input field with the multiple attribute -->
+                                          {{ form.pdf_file }}
+
+                                          <!-- Use JavaScript to add the 'multiple' attribute to the input dynamically -->
+                                          <script>
+                                                document.getElementById("file-upload").setAttribute("multiple", "multiple");
+                                          </script>
+                                    </div>
+
+                                    <!-- Hidden submit button -->
+                                    <button type="submit" class="submit-button" style="display: none">Upload PDF</button>
+                              </form>
+                        </div>
+
+                        <!-- Cloud Container -->
+                        <div id="cloud-container" class="cloud-tab-content">
+                              <div class="file-list">
+                                    <table class="file-list-table">
+                                          <thead>
+                                                <tr>
+                                                      <th><input type="checkbox" id="select-all" /></th>
+                                                      <th>File Name</th>
+                                                      <th>Last Updated</th>
+                                                </tr>
+                                          </thead>
+                                          <tbody>
+                                                {% for cloud_file in cloud_files_page %}
+                                                <tr>
+                                                      <td><input type="checkbox" class="file-checkbox" value="{{ cloud_file.file_name }}" /></td>
+                                                      <td>{{ cloud_file.file_name }}</td>
+                                                      <td>{{ cloud_file.file_last_updated }}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                      <td colspan="3">No files available.</td>
+                                                </tr>
+                                                {% endfor %}
+                                          </tbody>
+                                    </table>
+
+                                    <!-- Pagination Controls -->
+                                    <div class="pagination">
+                                          {% if cloud_files_page.has_previous %}
+                                          <a href="?page=1">&laquo; First</a>
+                                          <a href="?page={{ cloud_files_page.previous_page_number }}">Previous</a>
+                                          {% endif %}
+                                          <span>Page {{ cloud_files_page.number }} of {{ cloud_files_page.paginator.num_pages }}</span>
+                                          {% if cloud_files_page.has_next %}
+                                          <a href="?page={{ cloud_files_page.next_page_number }}">Next</a>
+                                          <a href="?page={{ cloud_files_page.paginator.num_pages }}">Last &raquo;</a>
+                                          {% endif %}
+                                    </div>
+                              </div>
+
+                              <!-- Create Session Button -->
+                              <div class="cloud-file-action-buttons-container">
+                                    <!-- Upload to Cloud Button -->
+                                    {% if is_admin_session %}
+                                    <form method="POST" enctype="multipart/form-data" class="upload-form" id="pdf-upload-form">
+                                          {% csrf_token %} {{ form.non_field_errors }} {{ form.pdf_file.errors }}
+                                          <!-- Drop file container -->
+                                          <div class="cloud-drop-file-container" id="drop-zone">
+                                                <div class="cloud-action-button">
+                                                      <label for="file-upload">
+                                                            Upload new files
+                                                            <span class="Browse">to cloud</span>
+                                                      </label>
+                                                </div>
+                                                <!-- Render the hidden file input field with the multiple attribute -->
+                                                {{ form.pdf_file }}
+                                          </div>
+                                          <!-- Hidden submit button -->
+                                          <button type="submit" class="submit-button" style="display: none">Upload PDF</button>
+                                    </form>
+                                    {% endif %}
+
+                                    <button type="button" id="create-session-button" class="cloud-action-button">Create Session</button>
+                              </div>
+                        </div>
+                  </div>
+                  <!-- File Show Container -->
+                  <div class="Uploaded-Files">
+                        <div id="fileDetails">No file selected.</div>
+                  </div>
+                  <div class="submit-pdf pdf-search-container">
+                        <button id="search-pdf-btn">Search</button>
+                  </div>
+            </section>
+
+            <div class="tabs-container">
+                  <div id="recent-files" class="tab-content active">
+                        <div class="files-container">
+                              {% for user_session in user_sessions_meta_data %}
+                              <div class="file-container">
+                                    <div class="file-sesison-preview-container">
+                                          <div class="edit-action-button" onclick="toggleAccordion(this)">
+                                                <img src="{% static 'Assets/DownArrow.png' %}" alt="Toggle Dropdown" class="edit-image" />
+                                          </div>
+                                          <a href="{% url 'display_pdf' session_id=user_session.session_id %}" style="text-decoration: none; color: inherit; width: 100%">
+                                                <div class="file-header">
+                                                      <div class="session-info">
+                                                            <!-- Editable Session Name Field -->
+                                                            <div class="file-name-container">
+                                                                  <span class="session-name" contenteditable="false">{{ user_session.session_name }}</span>
+                                                            </div>
+                                                      </div>
+                                                </div>
+                                          </a>
+
+                                          <div class="action-buttons">
+                                                <img src="{% static 'Assets/edit-icon.png' %}" alt="Edit" class="edit-image" onclick="toggleEdit(this, '{{ user_session.session_id }}')" />
+                                                <form id="deleteSessionForm" method="POST" data-session-id="{{ user_session.session_id }}" onsubmit="return confirmDelete();">
+                                                      {% csrf_token %}
+                                                      <img src="{% static 'Assets/Delete.svg' %}" alt="Delete" class="delete-image" onclick="submitDeleteForm()" />
+                                                </form>
+                                          </div>
+                                    </div>
+                                    <a href="{% url 'display_pdf' session_id=user_session.session_id %}" style="text-decoration: none; color: inherit">
+                                          <div class="file-dropdown" style="display: none">
+                                                <!-- Dropdown Content -->
+                                                <ul class="file-list">
+                                                      {% for file_name in user_session.file_names %}
+                                                      <div class="file-icon-container">
+                                                            <img src="{% static 'Assets/pdf_1.svg' %}" alt="file icon" />
+                                                            <li class="file-item">{{ file_name }}</li>
+                                                      </div>
+                                                      {% endfor %}
+                                                </ul>
+                                                <div class="file-date-container">{{ user_session.created_date }}</div>
+                                          </div>
+                                    </a>
+                              </div>
+                              {% endfor %}
+                        </div>
+
+                        <script></script>
+                  </div>
+            </div>
+
+            <script></script>
+            <script></script>
+
+            <script></script>
+            <script>
+                  //Use JavaScript to add the 'multiple' attribute to the input dynamically
+                  document.getElementById("file-upload").setAttribute("multiple", "multiple");
+
+                  // Highlight row when checkbox is selected
+                  document.querySelectorAll(".file-checkbox").forEach((checkbox) => {
+                                                      checkbox.addEventListener("change", function () {
+                                                            const row = this.closest("tr");
+                                                            if (this.checked) {
+                                                                  row.classList.add("selected");
+                                                            } else {
+                                                                  row.classList.remove("selected");
+                                                            }
+                                                      });
+                                                });
+
+                                                // Select All functionality
+                                                document.getElementById("select-all").addEventListener("click", function () {
+                                                      const checkboxes = document.querySelectorAll(".file-checkbox");
+                                                      checkboxes.forEach((checkbox) => {
+                                                            checkbox.checked = this.checked;
+                                                      });
+                                                });
+
+                                                // Handle the submit button click event
+                                                document.getElementById("create-session-button").addEventListener("click", function () {
+                                                      // Get the selected file names
+                                                      const selectedFiles = [];
+                                                      const checkboxes = document.querySelectorAll(".file-checkbox:checked");
+                                                      checkboxes.forEach((checkbox) => {
+                                                            selectedFiles.push(checkbox.value);
+                                                      });
+
+                                                      if (selectedFiles.length > 0) {
+                                                            // Send the selected file names via AJAX
+                                                            fetch("{% url 'create_session_from_cloud' %}", {
+                                                                  method: "POST",
+                                                                  headers: {
+                                                                        "Content-Type": "application/json",
+                                                                        "X-CSRFToken": "{{ csrf_token }}",
+                                                                  },
+                                                                  body: JSON.stringify({ files: selectedFiles }),
+                                                            })
+                                                            .then((response) => response.json())
+                                                            .then((data) => {
+                                                                  if (data.result === "success") {
+                                                                        // Redirect to the display_pdf page with the session ID
+                                                                        window.location.href = "{% url 'display_pdf' 'dummy_id' %}".replace("dummy_id", data.session_id);
+                                                                  } else {
+                                                                        alert("Failed to create a session.");
+                                                                  }
+                                                            })
+                                                            .catch((error) => {
+                                                                  console.error("Error:", error);
+                                                                  alert("An error occurred while creating the session.");
+                                                            });
+                                                      } else {
+                                                            alert("Please select at least one file.");
+                                                      }
+                                                });
+                                                function showTab(tabName) {
+                                                // Hide all tab content
+                                                document.getElementById("upload-container").style.display = "none";
+                                                document.getElementById("cloud-container").style.display = "none";
+
+                                                // Show the selected tab content
+                                                document.getElementById(tabName + "-container").style.display = "block";
+                                          }
+
+                                          // Set default active tab
+                                          document.getElementById("upload-tab").classList.add("active");
+                                          showTab("upload");
+                                          function toggleAccordion() {
+                                                      // Get the clicked container and the corresponding dropdown
+                                                      const fileContainer = event.target.closest(".file-container");
+                                                      const dropdown = fileContainer.querySelector(".file-dropdown");
+
+                                                      // Check if the dropdown is currently visible
+                                                      const isVisible = dropdown.style.display === "block";
+
+                                                      // Hide all other dropdowns
+                                                      document.querySelectorAll(".file-dropdown").forEach((item) => {
+                                                            item.style.display = "none";
+                                                      });
+
+                                                      // Toggle the current dropdown
+                                                      dropdown.style.display = isVisible ? "none" : "block";
+                                                }
+
+                                                // Function to confirm deletion
+                                                function confirmDelete() {
+                                                      return confirm("Are you sure you want to delete this session?");
+                                                }
+
+                                                // Function to submit the delete form
+                                                function submitDeleteForm() {
+                                                      const form = document.querySelector("#deleteSessionForm");
+                                                      form.submit();
+                                                }
+
+                                                // Attach event listeners
+                                                document.querySelectorAll(".file-header").forEach((header) => {
+                                                      header.addEventListener("click", function () {
+                                                            toggleAccordion(this);
+                                                      });
+                                                });
+
+                                                document.querySelectorAll(".edit-image").forEach((editButton) => {
+                                                      editButton.addEventListener("click", function (e) {
+                                                            e.stopPropagation(); // Prevent accordion toggle when clicking the edit button
+                                                            const sessionId = this.getAttribute("data-session-id");
+                                                            toggleEdit(this, sessionId);
+                                                      });
+                                                });
+
+                                                document.querySelectorAll(".delete-image").forEach((deleteButton) => {
+                                                      deleteButton.addEventListener("click", function (e) {
+                                                            e.stopPropagation(); // Prevent accordion toggle when clicking the delete button
+                                                            submitDeleteForm();
+                                                      });
+                                                });
+                                                function confirmDelete() {
+                                                      return confirm("Are you sure you want to delete this session?");
+                                                }
+
+                                                function submitDeleteForm() {
+                                                      document.getElementById("deleteSessionForm").submit();
+                                                }
+                                                function showDropdown(button) {
+                                                      const dropdown = button.closest(".file-container").querySelector(".file-dropdown");
+                                                      dropdown.style.display = "block";
+                                                }
+
+                                                function hideDropdown(button) {
+                                                      const dropdown = button.closest(".file-container").querySelector(".file-dropdown");
+                                                      dropdown.style.display = "none";
+                                                }
+
+                                                function confirmDelete() {
+                                                      return confirm("Are you sure you want to delete this session?");
+                                                }
+
+                                                function toggleEdit(image, sessionId) {
+                                                      const fileContainer = image.closest(".file-container");
+                                                      const sessionNameElement = fileContainer.querySelector(".session-name");
+
+                                                      if (image.src.includes("edit-icon.png")) {
+                                                            // Enable editing
+                                                            image.src = "{% static 'Assets/tick-icon.png' %}"; // Change to save (tick) icon
+                                                            sessionNameElement.contentEditable = "true";
+                                                            sessionNameElement.focus();
+                                                            sessionNameElement.style.border = "1px dashed #ccc"; // Optional visual cue for editing
+                                                      } else if (image.src.includes("tick-icon.png")) {
+                                                            // Save the edited session name
+                                                            image.src = "{% static 'Assets/edit-icon.png' %}"; // Change back to edit icon
+                                                            sessionNameElement.contentEditable = "false";
+                                                            sessionNameElement.style.border = "none";
+
+                                                            const updatedSessionName = sessionNameElement.textContent.trim();
+
+                                                            // Send the edited data to the server
+                                                            fetch("{% url 'editSessionName' %}", {
+                                                                  method: "POST",
+                                                                  headers: {
+                                                                        "Content-Type": "application/json",
+                                                                        "X-CSRFToken": "{{ csrf_token }}",
+                                                                  },
+                                                                  body: JSON.stringify({
+                                                                        session_id: sessionId,
+                                                                        session_name: updatedSessionName,
+                                                                  }),
+                                                            }).catch((error) => {
+                                                                  console.error(error);
+                                                                  alert("An error occurred. Please try again.");
+                                                            });
+                                                      }
+                                                }
+                                                function confirmDelete() {
+                                          return confirm("Are you sure you want to delete this session?");
+                                    }
+                                    document.addEventListener("DOMContentLoaded", function () {
+                                          const dropZone = document.getElementById("drop-zone");
+                                          const fileInput = document.getElementById("{{ form.pdf_file.id_for_label }}");
+                                          const uploadForm = document.getElementById("pdf-upload-form");
+
+                                          dropZone.addEventListener("dragover", (e) => {
+                                                e.preventDefault();
+                                                dropZone.classList.add("dragover");
+                                          });
+
+                                          dropZone.addEventListener("dragleave", () => {
+                                                dropZone.classList.remove("dragover");
+                                          });
+
+                                          dropZone.addEventListener("drop", (e) => {
+                                                e.preventDefault();
+                                                dropZone.classList.remove("dragover");
+                                                fileInput.files = e.dataTransfer.files;
+                                                handleFileUpload();
+                                          });
+
+                                          dropZone.addEventListener("click", () => {
+                                                fileInput.click();
+                                          });
+
+                                          fileInput.addEventListener("change", handleFileUpload);
+
+                                          function handleFileUpload() {
+                                                const isAdminSession = {{ is_admin_session|yesno:"true,false" }};
+                                                const formData = new FormData(uploadForm);
+                                                // Try processing the documents
+                                                fetch("{% url 'processDocuments' %}", {
+                                                      method: "POST",
+                                                      headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                                                      body: formData,
+                                                })
+                                                      .then((response) => {
+                                                            if (!response.ok) {
+                                                                  throw new Error("Unable to parse document.");
+                                                            }
+                                                            return response.json();
+                                                      })
+                                                      .then((data) => {
+                                                            if (data.parsed_content && data.parsed_content.length > 0) {
+                                                                  // Successfully parsed, add parsed_content to formData
+                                                                  formData.append("parsed_content", JSON.stringify(data.parsed_content));
+                                                                  if (isAdminSession === true) {
+
+                                                                        formData.append("session_id", "admin_session");
+
+                                                                        // Append the documents to the session form data
+                                                                        const files = uploadForm.querySelector('input[type="file"]').files;
+                                                                        
+
+                                                                        // Send the parsed content to the add_to_session endpoint
+                                                                        fetch("{% url 'addToSession' %}", {
+                                                                              method: "POST",
+                                                                              headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                                                                              body: formData,
+                                                                        })
+                                                                              .then((response) => {
+                                                                                    if (!response.ok) {
+                                                                                          throw new Error("Failed to add parsed content to the session.");
+                                                                                    }
+                                                                                    return response.json();
+                                                                              })
+                                                                              .then(() => {
+                                                                                    // Refresh the page on successful response
+                                                                                    location.reload();
+                                                                              })
+                                                                              .catch((error) => {
+                                                                                    console.error("Error:", error);
+                                                                                    alert("An error occurred while adding the parsed content to the session.");
+                                                                              });
+                                                                  } else {
+                                                                        createSession(formData);
+                                                                  }
+                                                            } else {
+                                                                  alert("The system is unable to parse this document.");
+                                                            }
+                                                      })
+                                                      .catch((error) => {
+                                                            console.error("Error:", error);
+                                                            alert("An error occurred while processing the document.");
+                                                      });
+                                          }
+
+                                          function createSession(formData) {
+                                                fetch("{% url 'createSession' %}", {
+                                                      method: "POST",
+                                                      headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                                                      body: formData,
+                                                })
+                                                      .then((response) => response.json())
+                                                      .then((data) => {
+                                                            if (data.result === "success") {
+                                                                  // Redirect to the display_pdf page with the session ID
+                                                                  window.location.href = "{% url 'display_pdf' 'dummy_id' %}".replace("dummy_id", data.session_id);
+                                                            } else {
+                                                                  alert("Failed to create a session.");
+                                                            }
+                                                      })
+                                                      .catch((error) => {
+                                                            console.error("Error:", error);
+                                                            alert("An error occurred while creating the session.");
+                                                      });
+                                          }
+                                    });
+                                    // Toggle the visibility of the popup when the profile icon is clicked
+                                    document.querySelector(".user-profile-icon").addEventListener("click", function () {
+                                          const profileMenu = document.querySelector(".profile-menu");
+                                          profileMenu.classList.toggle("active");
+                                    });
+
+                                    // Close the popup when clicking outside of it
+                                    document.addEventListener("click", function (event) {
+                                          const profileMenu = document.querySelector(".profile-menu");
+                                          if (!profileMenu.contains(event.target) && !event.target.classList.contains("user-profile-icon")) {
+                                                profileMenu.classList.remove("active");
+                                          }
+                                    });
+                                    function submitDeleteForm() {
+                                          const deleteForm = document.getElementById("deleteSessionForm");
+                                          const sessionId = deleteForm.getAttribute("data-session-id");
+
+                                          // Create the JSON payload
+                                          const payload = JSON.stringify({ session_id: sessionId });
+
+                                          fetch("{% url 'deleteSession' %}", {
+                                                method: "POST",
+                                                headers: {
+                                                      "Content-Type": "application/json",
+                                                      "X-CSRFToken": "{{ csrf_token }}",
+                                                },
+                                                body: payload,
+                                          })
+                                                .then((response) => {
+                                                      if (response.ok) {
+                                                            window.location.href = "{% url 'homepage' %}";
+                                                      } else if (response.status === 404) {
+                                                            alert("Session does not exist.");
+                                                      } else {
+                                                            alert("An error occurred while trying to delete the session.");
+                                                      }
+                                                })
+                                                .catch((error) => console.error("Error:", error));
+                                    }
+            </script>
+      </body>
+</html>

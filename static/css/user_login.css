@@ -1,0 +1,228 @@
+* {
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+}
+
+.Login-Page-Container {
+      display: grid;
+      height: 100%;
+      width: 100%;
+}
+
+.Login-Left-Part {
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background-color: #f4f4f4;
+      width: 100%;
+}
+.Login-Left-Part::before {
+      content: "";
+      background: url(../Images/Side-Image.svg) no-repeat;
+      background-position: top left;
+      background-size: contain;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 299px;
+      height: 240px;
+}
+
+.Login-Right-Part {
+      box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 20px;
+      align-items: center;
+      position: fixed;
+      right: 0px;
+      height: 100%;
+      justify-content: center;
+}
+.logos {
+      display: flex;
+      gap: 20px;
+}
+
+.Logo-title-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      width: 210px;
+      margin: 30px 0px 30px;
+}
+
+.Logo-Container {
+      margin: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      position: fixed;
+}
+.Login-Left-Part-img {
+      height: 20%;
+}
+.Title-Container h5 {
+      font-family: "Poppins", sans-serif;
+      font-size: 16.16px;
+      font-weight: 600;
+      line-height: 24.23px;
+      text-align: center;
+      color: #063970;
+}
+
+#loginForm,
+#SignUpForm {
+      display: flex;
+      flex-direction: column;
+      gap: 75px;
+      max-width: 90%;
+      width: 90%;
+      margin: 0 auto;
+}
+
+.form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 50.49px;
+      margin-top: 70px;
+}
+
+.Input-Container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      background-color: #f4f4f4;
+      border-radius: 8px;
+}
+
+.form-group__label {
+      font-family: "Poppins", sans-serif;
+      font-size: 16.16px;
+      font-weight: 400;
+      line-height: 24.23px;
+      text-align: left;
+      max-width: 100%;
+      width: 429.13px;
+      margin: 0 auto;
+      color: #555555;
+}
+
+.Input-Container input {
+      font-family: "Poppins", sans-serif;
+      font-size: 14.14px;
+      font-weight: 400;
+      line-height: 21.2px;
+      text-align: left;
+      max-width: 100%;
+      width: 320px;
+      margin: 0px 20px;
+      border: none;
+      background: #f4f4f4;
+      outline: none;
+      color: #555555;
+}
+
+.Input-Container input:focus {
+      border: none;
+}
+
+.Email-Password-Icon {
+      width: 50.49px;
+      height: 50.49px;
+      left: 378.65px;
+      border-radius: 8.08px;
+      background: #063970;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+}
+
+.form-group__button {
+      height: 50.49px;
+      border-radius: 8px;
+      background: #063970;
+      /* box-shadow: 0px 6px 6px #063970; */
+      border: none;
+      color: #ffffff;
+      font-family: "Poppins", sans-serif;
+      font-size: 16.16px;
+      font-weight: 600;
+      line-height: 24.23px;
+      text-align: center;
+      cursor: pointer;
+}
+
+/*-------------------------------------------------------Toggle-Login-Signup--------------------------------------------------*/
+
+.toggle-signup-login {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 30px;
+      gap: 10px;
+}
+
+#toggleSignUpButton,
+#toggleLoginButton {
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      background: none;
+      color: #063970;
+      cursor: pointer;
+}
+.User-Profile-Details {
+      background: none;
+      margin-top: -45px;
+}
+
+.Profile-Container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+}
+
+.Profile-Container p {
+      font-family: "Inter", sans-serif;
+      font-size: 80px;
+      font-weight: 700;
+      line-height: 80px;
+      letter-spacing: 2px;
+      text-align: left;
+      color: #a7a7a7;
+}
+
+.go-back-button button {
+      padding: 10px 20px 10px 20px;
+      border-radius: 4px;
+      background: #063970;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: "Inter", sans-serif;
+      color: #ffffff;
+      cursor: pointer;
+}
+
+.go-back-button button:hover {
+      background: #388e3c;
+}
+
+.error-message {
+      padding: 10px;
+      background-color: red;
+      color: white;
+      border-radius: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  }
